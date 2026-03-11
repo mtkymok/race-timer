@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SUP Race Timer</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --panel-2: #1f2937;
+      --border: #334155;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --negative: #60a5fa;
+      --positive: #f87171;
+      --zero: #f8fafc;
+      --primary: #22c55e;
+      --warn: #ef4444;
+      --secondary: #3b82f6;
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: linear-gradient(180deg, #020617 0%, #0f172a 100%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 16px 16px 40px;
+    }
+
+    .panel {
+      background: rgba(15, 23, 42, .78);
+      border: 1px solid rgba(148, 163, 184, .16);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
+      overflow: hidden;
+    }
+
+    .header {
+      padding: 18px 18px 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: .02em;
+    }
+
+    .icon-btn, .btn {
+      border: 0;
+      border-radius: 16px;
+      cursor: pointer;
+      font-weight: 700;
+      transition: transform .12s ease, opacity .12s ease, background .12s ease;
+    }
+
+    .icon-btn:active, .btn:active { transform: scale(.98); }
+
+    .icon-btn {
+      padding: 12px 14px;
+      background: var(--panel-2);
+      color: var(--text);
+    }
+
+    .content { padding: 0 18px 18px; }
+
+    .field { margin-bottom: 14px; }
+    .label {
+      display: block;
+      color: var(--muted);
+      font-size: .84rem;
+      margin-bottom: 8px;
+      font-weight: 600;
+      letter-spacing: .02em;
+    }
+
+    input[type="text"], textarea, select {
+      width: 100%;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 14px;
+      padding: 13px 14px;
+      font: inherit;
+    }
+
+    textarea {
+      min-height: 68px;
+      resize: vertical;
+    }
+
+    input[disabled], select[disabled], textarea[disabled] { opacity: .72; }
+
+    .timer-wrap {
+      padding: 18px 0 12px;
+      text-align: center;
+      position: relative;
+    }
+
+    .autosave-badge {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 6px 10px;
+      font-size: .8rem;
+      font-weight: 600;
+      border-radius: 999px;
+      background: rgba(34,197,94,.15);
+      color: #22c55e;
+      border: 1px solid rgba(34,197,94,.35);
+      opacity: 0;
+      transform: translateY(-4px);
+      transition: opacity .25s ease, transform .25s ease;
+      pointer-events: none;
+    }
+
+    .autosave-badge.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .timer {
+      font-family: "JetBrains Mono", "SF Mono", "Roboto Mono", "Menlo", "Consolas", monospace;
+      font-variant-numeric: tabular-nums;
+      font-feature-settings: "tnum";
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: .02em;
+      font-size: clamp(3.2rem, 14vw, 6.3rem);
+      margin: 6px 0 0;
+      display: inline-block;
+      min-width: 9.5ch;
+      text-align: center;
+    }
+
+    .timer.negative { color: var(--negative); }
+    .timer.positive { color: var(--positive); }
+    .timer.zero { color: var(--zero); }
+
+    .select-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: .84rem;
+      margin-top: 8px;
+    }
+
+    .actions {
+      display: grid;
+      gap: 12px;
+      margin-top: 8px;
+    }
+
+    .actions.two { grid-template-columns: 1fr 1fr; }
+
+    .btn {
+      padding: 15px 16px;
+      min-height: 52px;
+      color: white;
+      font-size: 1rem;
+    }
+
+    .btn.primary { background: var(--primary); }
+    .btn.secondary { background: var(--secondary); }
+    .btn.warn { background: var(--warn); }
+    .btn.outline {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .section {
+      margin-top: 18px;
+      padding-top: 18px;
+      border-top: 1px solid rgba(148, 163, 184, .12);
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .section-title {
+      font-size: 1rem;
+      font-weight: 700;
+    }
+
+    .empty {
+      color: var(--muted);
+      background: rgba(31, 41, 55, .55);
+      border: 1px dashed rgba(148, 163, 184, .22);
+      border-radius: 16px;
+      padding: 16px;
+      text-align: center;
+    }
+
+    .lap-list, .session-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .lap-card, .session-card {
+      background: rgba(2, 6, 23, .55);
+      border: 1px solid rgba(148, 163, 184, .16);
+      border-radius: 18px;
+      padding: 14px;
+    }
+
+    .lap-top, .session-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .lap-number, .session-name-display {
+      font-weight: 700;
+    }
+
+    .lap-time {
+      font-variant-numeric: tabular-nums;
+      font-weight: 800;
+    }
+
+    .negative-text { color: var(--negative); }
+    .positive-text { color: var(--positive); }
+
+    .meta {
+      display: grid;
+      gap: 4px;
+      color: var(--muted);
+      font-size: .88rem;
+    }
+
+    .row-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+      margin-bottom: 16px;
+    }
+
+    .mini-btn {
+      background: var(--panel-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 9px 12px;
+      font-size: .88rem;
+      cursor: pointer;
+    }
+
+    dialog {
+      width: min(92vw, 720px);
+      border: 1px solid rgba(148, 163, 184, .18);
+      border-radius: 24px;
+      padding: 0;
+      background: #020617;
+      color: var(--text);
+      box-shadow: var(--shadow);
+    }
+
+    dialog::backdrop { background: rgba(2, 6, 23, .72); }
+
+    .modal { padding: 18px; }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .modal-title {
+      font-size: 1.1rem;
+      font-weight: 800;
+    }
+
+    .detail-grid {
+      display: grid;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .detail-box {
+      background: rgba(15, 23, 42, .6);
+      border: 1px solid rgba(148, 163, 184, .14);
+      border-radius: 16px;
+      padding: 12px;
+    }
+
+    .small-label {
+      color: var(--muted);
+      font-size: .82rem;
+      margin-bottom: 6px;
+      display: block;
+      font-weight: 600;
+    }
+
+    @media (min-width: 768px) {
+      .app { padding-top: 28px; }
+      .panel { border-radius: 28px; }
+      .content { padding: 0 24px 24px; }
+      .header { padding: 22px 24px 12px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="panel">
+      <div class="header">
+        <div class="title">Race Timer</div>
+        <button class="icon-btn" id="openSessionsBtn" type="button">Session List</button>
+      </div>
+
+      <div class="content">
+        <div class="field">
+          <label class="label" for="sessionName">Session Name</label>
+          <input id="sessionName" type="text" maxlength="120" placeholder="e.g. Men's Open Final" />
+        </div>
+
+        <div class="timer-wrap">
+          <div class="timer negative" id="timerDisplay">-03:00.00</div>
+          <div id="autosaveStatus" class="autosave-badge">✓ Auto-saved just now</div>
+        </div>
+
+        <div class="select-row">
+          <div>
+            <label class="label" for="minutesSelect">Min</label>
+            <select id="minutesSelect"></select>
+          </div>
+          <div>
+            <label class="label" for="secondsSelect">Sec</label>
+            <select id="secondsSelect"></select>
+          </div>
+        </div>
+        <div class="hint" id="inputHint">Preset time can be edited before starting. Max 59:59.</div>
+
+        <div class="actions" id="primaryActions"></div>
+
+        <div class="section">
+          <div class="section-header">
+            <div class="section-title">Lap List</div>
+            <button class="mini-btn" id="exportCurrentCsvBtn" type="button">Export Current CSV</button>
+          </div>
+          <div id="lapList" class="lap-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <dialog id="sessionListDialog">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Session List</div>
+        <button class="icon-btn" type="button" id="closeSessionListBtn">Back</button>
+      </div>
+      <div id="sessionList" class="session-list"></div>
+    </div>
+  </dialog>
+
+  <dialog id="sessionDetailDialog">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Session Detail</div>
+        <button class="icon-btn" type="button" id="closeSessionDetailBtn">Back</button>
+      </div>
+      <div class="detail-grid">
+        <div class="detail-box">
+          <label class="small-label" for="detailSessionName">Session Name</label>
+          <input id="detailSessionName" type="text" />
+        </div>
+        <div class="detail-box">
+          <span class="small-label">Timestamp</span>
+          <div id="detailTimestamp"></div>
+        </div>
+        <div class="detail-box">
+          <span class="small-label">Preset Time</span>
+          <div id="detailPresetTime"></div>
+        </div>
+      </div>
+      <div class="row-actions">
+        <button class="btn secondary" type="button" id="detailExportBtn">Export CSV</button>
+        <button class="btn warn" type="button" id="detailDeleteBtn">Delete</button>
+      </div>
+      <div class="section" style="margin-top:0; padding-top:0; border-top:0;">
+        <div class="section-title" style="margin-bottom:12px;">Lap List</div>
+        <div id="detailLapList" class="lap-list"></div>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="deleteConfirmDialog">
+    <div class="modal">
+      <div class="modal-title" style="margin-bottom: 16px;">Are you sure you want to delete this session?</div>
+      <div class="actions two">
+        <button class="btn outline" type="button" id="deleteCancelBtn">Cancel</button>
+        <button class="btn warn" type="button" id="deleteConfirmBtn">Delete</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script>
+    const STORAGE_KEY = 'sup-race-timer-sessions-v1';
+    const DEFAULT_PRESET = { minutes: 3, seconds: 0 };
+
+    const state = {
+      status: 'idle',
+      presetMs: 0,
+      startedAt: null,
+      pausedElapsedMs: 0,
+      laps: [],
+      sessions: [],
+      currentSessionId: null,
+      alertPlayed: false,
+      intervalId: null,
+      detailSessionId: null,
+      pendingDeleteSessionId: null,
+    };
+
+    const el = {
+      autosaveStatus: document.getElementById('autosaveStatus'),
+      sessionName: document.getElementById('sessionName'),
+      minutesSelect: document.getElementById('minutesSelect'),
+      secondsSelect: document.getElementById('secondsSelect'),
+      timerDisplay: document.getElementById('timerDisplay'),
+      inputHint: document.getElementById('inputHint'),
+      primaryActions: document.getElementById('primaryActions'),
+      lapList: document.getElementById('lapList'),
+      exportCurrentCsvBtn: document.getElementById('exportCurrentCsvBtn'),
+      openSessionsBtn: document.getElementById('openSessionsBtn'),
+      sessionListDialog: document.getElementById('sessionListDialog'),
+      closeSessionListBtn: document.getElementById('closeSessionListBtn'),
+      sessionList: document.getElementById('sessionList'),
+      sessionDetailDialog: document.getElementById('sessionDetailDialog'),
+      closeSessionDetailBtn: document.getElementById('closeSessionDetailBtn'),
+      detailSessionName: document.getElementById('detailSessionName'),
+      detailTimestamp: document.getElementById('detailTimestamp'),
+      detailPresetTime: document.getElementById('detailPresetTime'),
+      detailLapList: document.getElementById('detailLapList'),
+      detailExportBtn: document.getElementById('detailExportBtn'),
+      detailDeleteBtn: document.getElementById('detailDeleteBtn'),
+      deleteConfirmDialog: document.getElementById('deleteConfirmDialog'),
+      deleteCancelBtn: document.getElementById('deleteCancelBtn'),
+      deleteConfirmBtn: document.getElementById('deleteConfirmBtn'),
+    };
+
+    function uid() {
+      return Math.random().toString(36).slice(2) + Date.now().toString(36);
+    }
+
+    function loadSessions() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        state.sessions = raw ? JSON.parse(raw) : [];
+      } catch {
+        state.sessions = [];
+      }
+    }
+
+    function saveSessions() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state.sessions));
+      showAutoSaved();
+    }
+
+    function fillSelectOptions() {
+      for (let i = 0; i <= 59; i++) {
+        const option = document.createElement('option');
+        option.value = String(i);
+        option.textContent = String(i).padStart(2, '0');
+        el.minutesSelect.appendChild(option);
+      }
+      for (let i = 0; i <= 59; i++) {
+        const option = document.createElement('option');
+        option.value = String(i);
+        option.textContent = String(i).padStart(2, '0');
+        el.secondsSelect.appendChild(option);
+      }
+    }
+
+    function getPresetFromInputs() {
+      const minutes = Number(el.minutesSelect.value || 0);
+      const seconds = Number(el.secondsSelect.value || 0);
+      return { minutes, seconds };
+    }
+
+    function setPresetInputs(minutes, seconds) {
+      el.minutesSelect.value = String(minutes);
+      el.secondsSelect.value = String(seconds);
+    }
+
+    function presetToMs(minutes, seconds) {
+      return ((minutes * 60) + seconds) * 1000;
+    }
+
+    function formatPreset(minutes, seconds) {
+      return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
+
+    function getDisplayMs() {
+      if (state.status === 'idle') return -state.presetMs;
+      if (state.status === 'paused') return state.pausedElapsedMs - state.presetMs;
+      const elapsed = Date.now() - state.startedAt;
+      return elapsed - state.presetMs;
+    }
+
+    function formatSignedTime(ms) {
+      const sign = ms < 0 ? '-' : ms > 0 ? '+' : '';
+      const abs = Math.abs(ms);
+      const totalCentiseconds = Math.floor(abs / 10);
+      const minutes = Math.floor(totalCentiseconds / 6000);
+      const seconds = Math.floor((totalCentiseconds % 6000) / 100);
+      const centiseconds = totalCentiseconds % 100;
+      return `${sign}${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(centiseconds).padStart(2, '0')}`;
+    }
+
+    function applyTimerStyle(ms) {
+      el.timerDisplay.classList.remove('negative', 'positive', 'zero');
+      if (ms < 0) el.timerDisplay.classList.add('negative');
+      else if (ms > 0) el.timerDisplay.classList.add('positive');
+      else el.timerDisplay.classList.add('zero');
+    }
+
+    function updateTimerDisplay() {
+      const ms = getDisplayMs();
+      el.timerDisplay.textContent = formatSignedTime(ms);
+      applyTimerStyle(ms);
+      if (!state.alertPlayed && ms >= 0 && state.status !== 'idle') {
+        state.alertPlayed = true;
+        playBeep();
+      }
+    }
+
+    function playBeep() {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = 880;
+        gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.22);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.24);
+      } catch {}
+    }
+
+    function stopInterval() {
+      if (state.intervalId) {
+        clearInterval(state.intervalId);
+        state.intervalId = null;
+      }
+    }
+
+    function startInterval() {
+      stopInterval();
+      state.intervalId = setInterval(updateTimerDisplay, 10);
+    }
+
+    function createSession() {
+      const { minutes, seconds } = getPresetFromInputs();
+      const name = el.sessionName.value.trim() || 'Untitled Session';
+      const session = {
+        id: uid(),
+        name,
+        initialMinutes: minutes,
+        initialSeconds: seconds,
+        savedAt: new Date().toISOString(),
+        laps: [],
+      };
+      state.sessions.unshift(session);
+      state.currentSessionId = session.id;
+      saveSessions();
+      return session;
+    }
+
+    function getCurrentSession() {
+      return state.sessions.find((s) => s.id === state.currentSessionId) || null;
+    }
+
+    function syncCurrentSessionName() {
+      const session = getCurrentSession();
+      if (!session) return;
+      session.name = el.sessionName.value.trim() || 'Untitled Session';
+      saveSessions();
+      renderSessionList();
+      renderDetailSession();
+    }
+
+    function startTimer() {
+      const preset = getPresetFromInputs();
+      state.presetMs = presetToMs(preset.minutes, preset.seconds);
+      state.laps = [];
+      state.alertPlayed = false;
+      state.pausedElapsedMs = 0;
+      createSession();
+      state.startedAt = Date.now();
+      state.status = 'running';
+      startInterval();
+      renderAll();
+    }
+
+    function pauseTimer() {
+      state.pausedElapsedMs = Date.now() - state.startedAt;
+      state.status = 'paused';
+      stopInterval();
+      renderAll();
+    }
+
+    function resumeTimer() {
+      state.startedAt = Date.now() - state.pausedElapsedMs;
+      state.status = 'running';
+      startInterval();
+      renderAll();
+    }
+
+    function cancelTimer() {
+      stopInterval();
+      const session = getCurrentSession();
+      if (session) {
+        setPresetInputs(session.initialMinutes, session.initialSeconds);
+      }
+      state.status = 'idle';
+      state.startedAt = null;
+      state.pausedElapsedMs = 0;
+      state.presetMs = presetToMs(getPresetFromInputs().minutes, getPresetFromInputs().seconds);
+      state.laps = [];
+      state.currentSessionId = null;
+      state.alertPlayed = false;
+      renderAll();
+    }
+
+    function addLap() {
+      if (state.status !== 'running') return;
+      const currentDisplayMs = getDisplayMs();
+      const lap = {
+        id: uid(),
+        lapNumber: state.laps.length + 1,
+        lapTime: formatSignedTime(currentDisplayMs),
+        comment: '',
+        recordedAt: new Date().toISOString(),
+      };
+      state.laps.unshift(lap);
+      const session = getCurrentSession();
+      if (session) {
+        session.laps = state.laps.map((item) => ({ ...item }));
+        saveSessions();
+      }
+      renderAll();
+    }
+
+    function updateLapComment(lapId, comment, targetSessionId = null) {
+      if (targetSessionId) {
+        const session = state.sessions.find((s) => s.id === targetSessionId);
+        if (!session) return;
+        const lap = session.laps.find((l) => l.id === lapId);
+        if (!lap) return;
+        lap.comment = comment;
+      } else {
+        const lap = state.laps.find((l) => l.id === lapId);
+        if (!lap) return;
+        lap.comment = comment;
+        const session = getCurrentSession();
+        if (session) session.laps = state.laps.map((item) => ({ ...item }));
+      }
+      saveSessions();
+      renderSessionList();
+      renderDetailSession();
+    }
+
+    function exportSessionCsv(session) {
+      if (!session) return;
+      const rows = [
+        ['session_name', 'timestamp', 'preset_time', 'lap', 'time', 'comment'],
+        ...session.laps
+          .slice()
+          .sort((a, b) => a.lapNumber - b.lapNumber)
+          .map((lap) => [
+            session.name,
+            formatTimestamp(session.savedAt),
+            formatPreset(session.initialMinutes, session.initialSeconds),
+            String(lap.lapNumber),
+            lap.lapTime,
+            lap.comment || ''
+          ])
+      ];
+      const csv = rows.map((row) => row.map(escapeCsv).join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `session_${sanitizeFilename(session.name)}_${fileTimestamp(new Date())}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function escapeCsv(value) {
+      const str = String(value ?? '');
+      return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+    }
+
+    function sanitizeFilename(name) {
+      return name.replace(/[^a-z0-9-_]+/gi, '_').replace(/^_+|_+$/g, '') || 'session';
+    }
+
+    function fileTimestamp(date) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      const hh = String(date.getHours()).padStart(2, '0');
+      const mm = String(date.getMinutes()).padStart(2, '0');
+      const ss = String(date.getSeconds()).padStart(2, '0');
+      return `${y}${m}${d}_${hh}${mm}${ss}`;
+    }
+
+    function formatTimestamp(iso) {
+      const date = new Date(iso);
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      const hh = String(date.getHours()).padStart(2, '0');
+      const mm = String(date.getMinutes()).padStart(2, '0');
+      return `${y}/${m}/${d} ${hh}:${mm}`;
+    }
+
+    function renderActions() {
+      el.primaryActions.innerHTML = '';
+      if (state.status === 'idle') {
+        el.primaryActions.className = 'actions';
+        const startBtn = button('Start', 'btn primary');
+        startBtn.addEventListener('click', startTimer);
+        el.primaryActions.appendChild(startBtn);
+      } else if (state.status === 'running') {
+        el.primaryActions.className = 'actions two';
+        const cancelBtn = button('Cancel', 'btn warn');
+        cancelBtn.addEventListener('click', cancelTimer);
+        const pauseBtn = button('Pause', 'btn secondary');
+        pauseBtn.addEventListener('click', pauseTimer);
+        const lapBtn = button('Lap', 'btn outline');
+        lapBtn.style.gridColumn = '1 / -1';
+        lapBtn.addEventListener('click', addLap);
+        el.primaryActions.append(cancelBtn, pauseBtn, lapBtn);
+      } else {
+        el.primaryActions.className = 'actions two';
+        const cancelBtn = button('Cancel', 'btn warn');
+        cancelBtn.addEventListener('click', cancelTimer);
+        const resumeBtn = button('Resume', 'btn secondary');
+        resumeBtn.addEventListener('click', resumeTimer);
+        el.primaryActions.append(cancelBtn, resumeBtn);
+      }
+    }
+
+    function button(text, className) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = className;
+      btn.textContent = text;
+      return btn;
+    }
+
+    function renderLapList() {
+      el.lapList.innerHTML = '';
+      const currentLaps = state.status === 'idle' ? [] : state.laps;
+      if (currentLaps.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'empty';
+        empty.textContent = 'No laps recorded yet';
+        el.lapList.appendChild(empty);
+        return;
+      }
+
+      currentLaps.forEach((lap) => {
+        const card = document.createElement('div');
+        card.className = 'lap-card';
+        const signClass = lap.lapTime.startsWith('-') ? 'negative-text' : lap.lapTime.startsWith('+') ? 'positive-text' : '';
+        card.innerHTML = `
+          <div class="lap-top">
+            <div class="lap-number">#${lap.lapNumber}</div>
+            <div class="lap-time ${signClass}">${lap.lapTime}</div>
+          </div>
+        `;
+        const textarea = document.createElement('textarea');
+        textarea.placeholder = 'Add a comment';
+        textarea.value = lap.comment || '';
+        textarea.addEventListener('input', (e) => updateLapComment(lap.id, e.target.value));
+        card.appendChild(textarea);
+        el.lapList.appendChild(card);
+      });
+    }
+
+    function renderSessionList() {
+      el.sessionList.innerHTML = '';
+      if (state.sessions.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'empty';
+        empty.textContent = 'No saved sessions yet';
+        el.sessionList.appendChild(empty);
+        return;
+      }
+
+      state.sessions.forEach((session) => {
+        const card = document.createElement('div');
+        card.className = 'session-card';
+        card.innerHTML = `
+          <div class="session-top">
+            <div class="session-name-display">${escapeHtml(session.name)}</div>
+          </div>
+          <div class="meta">
+            <div>${formatTimestamp(session.savedAt)}</div>
+            <div>Preset Time: ${formatPreset(session.initialMinutes, session.initialSeconds)} / ${session.laps.length} laps</div>
+          </div>
+        `;
+        const actions = document.createElement('div');
+        actions.className = 'row-actions';
+        const openBtn = document.createElement('button');
+        openBtn.className = 'mini-btn';
+        openBtn.textContent = 'Open';
+        openBtn.addEventListener('click', () => openSessionDetail(session.id));
+        const exportBtn = document.createElement('button');
+        exportBtn.className = 'mini-btn';
+        exportBtn.textContent = 'Export CSV';
+        exportBtn.addEventListener('click', () => exportSessionCsv(session));
+        actions.append(openBtn, exportBtn);
+        card.appendChild(actions);
+        el.sessionList.appendChild(card);
+      });
+    }
+
+    function renderDetailSession() {
+      const session = state.sessions.find((s) => s.id === state.detailSessionId);
+      if (!session) {
+        el.detailSessionName.value = '';
+        el.detailTimestamp.textContent = '-';
+        el.detailPresetTime.textContent = '-';
+        el.detailLapList.innerHTML = '<div class="empty">No session selected</div>';
+        return;
+      }
+
+      el.detailSessionName.value = session.name;
+      el.detailTimestamp.textContent = formatTimestamp(session.savedAt);
+      el.detailPresetTime.textContent = formatPreset(session.initialMinutes, session.initialSeconds);
+      el.detailLapList.innerHTML = '';
+
+      if (session.laps.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'empty';
+        empty.textContent = 'No laps recorded yet';
+        el.detailLapList.appendChild(empty);
+      } else {
+        session.laps.forEach((lap) => {
+          const card = document.createElement('div');
+          card.className = 'lap-card';
+          const signClass = lap.lapTime.startsWith('-') ? 'negative-text' : lap.lapTime.startsWith('+') ? 'positive-text' : '';
+          card.innerHTML = `
+            <div class="lap-top">
+              <div class="lap-number">#${lap.lapNumber}</div>
+              <div class="lap-time ${signClass}">${lap.lapTime}</div>
+            </div>
+          `;
+          const textarea = document.createElement('textarea');
+          textarea.placeholder = 'Add a comment';
+          textarea.value = lap.comment || '';
+          textarea.addEventListener('input', (e) => updateLapComment(lap.id, e.target.value, session.id));
+          card.appendChild(textarea);
+          el.detailLapList.appendChild(card);
+        });
+      }
+    }
+
+    function openSessionDetail(sessionId) {
+      state.detailSessionId = sessionId;
+      renderDetailSession();
+      el.sessionDetailDialog.showModal();
+    }
+
+    function deleteSession(sessionId) {
+      state.sessions = state.sessions.filter((s) => s.id !== sessionId);
+      if (state.currentSessionId === sessionId) state.currentSessionId = null;
+      if (state.detailSessionId === sessionId) state.detailSessionId = null;
+      saveSessions();
+      renderSessionList();
+      renderDetailSession();
+    }
+
+    function showAutoSaved() {
+      if (!el.autosaveStatus) return;
+      el.autosaveStatus.classList.add('show');
+      el.autosaveStatus.textContent = '✓ Auto-saved just now';
+      clearTimeout(showAutoSaved._t);
+      showAutoSaved._t = setTimeout(() => {
+        el.autosaveStatus.classList.remove('show');
+      }, 2000);
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+    }
+
+    function renderInputs() {
+      const locked = state.status !== 'idle';
+      el.minutesSelect.disabled = locked;
+      el.secondsSelect.disabled = locked;
+      el.inputHint.textContent = locked
+        ? 'Preset time is locked while running or paused.'
+        : 'Preset time can be edited before starting. Max 59:59.';
+      if (!locked) {
+        const preset = getPresetFromInputs();
+        state.presetMs = presetToMs(preset.minutes, preset.seconds);
+        updateTimerDisplay();
+      }
+    }
+
+    function renderAll() {
+      renderInputs();
+      updateTimerDisplay();
+      renderActions();
+      renderLapList();
+      renderSessionList();
+      renderDetailSession();
+      el.exportCurrentCsvBtn.disabled = !(state.currentSessionId && getCurrentSession());
+      el.exportCurrentCsvBtn.style.opacity = el.exportCurrentCsvBtn.disabled ? '.5' : '1';
+    }
+
+    function runBasicTests() {
+      console.assert(formatSignedTime(-3910) === '-00:03.91', 'Negative centisecond formatting failed');
+      console.assert(formatSignedTime(0) === '00:00.00', 'Zero formatting failed');
+      console.assert(formatSignedTime(3910) === '+00:03.91', 'Positive centisecond formatting failed');
+      console.assert(formatPreset(59, 59) === '59:59', 'Preset formatting failed');
+      console.assert(presetToMs(1, 30) === 90000, 'Preset to ms conversion failed');
+    }
+
+    function init() {
+      fillSelectOptions();
+      loadSessions();
+      setPresetInputs(DEFAULT_PRESET.minutes, DEFAULT_PRESET.seconds);
+      state.presetMs = presetToMs(DEFAULT_PRESET.minutes, DEFAULT_PRESET.seconds);
+
+      el.minutesSelect.addEventListener('change', () => {
+        const preset = getPresetFromInputs();
+        setPresetInputs(preset.minutes, preset.seconds);
+        renderAll();
+      });
+
+      el.secondsSelect.addEventListener('change', () => {
+        const preset = getPresetFromInputs();
+        setPresetInputs(preset.minutes, preset.seconds);
+        renderAll();
+      });
+
+      el.sessionName.addEventListener('input', () => {
+        if (state.currentSessionId) syncCurrentSessionName();
+      });
+
+      el.exportCurrentCsvBtn.addEventListener('click', () => {
+        const session = getCurrentSession();
+        if (session) exportSessionCsv(session);
+      });
+
+      el.openSessionsBtn.addEventListener('click', () => {
+        renderSessionList();
+        el.sessionListDialog.showModal();
+      });
+
+      el.closeSessionListBtn.addEventListener('click', () => el.sessionListDialog.close());
+      el.closeSessionDetailBtn.addEventListener('click', () => el.sessionDetailDialog.close());
+
+      el.detailSessionName.addEventListener('input', () => {
+        const session = state.sessions.find((s) => s.id === state.detailSessionId);
+        if (!session) return;
+        session.name = el.detailSessionName.value.trim() || 'Untitled Session';
+        saveSessions();
+        renderSessionList();
+      });
+
+      el.detailExportBtn.addEventListener('click', () => {
+        const session = state.sessions.find((s) => s.id === state.detailSessionId);
+        if (session) exportSessionCsv(session);
+      });
+
+      el.detailDeleteBtn.addEventListener('click', () => {
+        if (!state.detailSessionId) return;
+        state.pendingDeleteSessionId = state.detailSessionId;
+        el.deleteConfirmDialog.showModal();
+      });
+
+      el.deleteCancelBtn.addEventListener('click', () => {
+        state.pendingDeleteSessionId = null;
+        el.deleteConfirmDialog.close();
+      });
+
+      el.deleteConfirmBtn.addEventListener('click', () => {
+        if (state.pendingDeleteSessionId) {
+          deleteSession(state.pendingDeleteSessionId);
+          state.pendingDeleteSessionId = null;
+          el.deleteConfirmDialog.close();
+          el.sessionDetailDialog.close();
+        }
+      });
+
+      renderAll();
+      runBasicTests();
+    }
+
+    init();
+  </script>
+</body>
+</html>
