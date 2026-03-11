@@ -682,16 +682,18 @@
         const lap = session.laps.find((l) => l.id === lapId);
         if (!lap) return;
         lap.comment = comment;
-      } else {
-        const lap = state.laps.find((l) => l.id === lapId);
-        if (!lap) return;
-        lap.comment = comment;
-        const session = getCurrentSession();
-        if (session) session.laps = state.laps.map((item) => ({ ...item }));
+        saveSessions();
+        renderSessionList();
+        return;
       }
+
+      const lap = state.laps.find((l) => l.id === lapId);
+      if (!lap) return;
+      lap.comment = comment;
+      const session = getCurrentSession();
+      if (session) session.laps = state.laps.map((item) => ({ ...item }));
       saveSessions();
       renderSessionList();
-      renderDetailSession();
     }
 
     function exportSessionCsv(session) {
